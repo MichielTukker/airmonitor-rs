@@ -6,12 +6,13 @@ pub mod display {
         prelude::*,
         text::{Baseline, Text},
     };
+    use esp_hal::gpio::interconnect::PeripheralOutput;
     use esp_hal::i2c::master::Config;
     use esp_hal::i2c::master::I2c;
     use esp_hal::i2c::master::Instance;
-    use esp_hal::{gpio::interconnect::PeripheralOutput, peripheral::Peripheral};
     use log::{debug, error, info, warn};
     use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
+
     pub struct OledDisplay<'a> {
         display: Ssd1306<
             I2CInterface<I2c<'a, esp_hal::Blocking>>,
@@ -20,13 +21,15 @@ pub mod display {
         >,
         text_style: MonoTextStyle<'a, BinaryColor>,
     }
+
     impl<'a> OledDisplay<'a> {
         pub fn new(
-            device: impl Peripheral<P = impl Instance> + 'a,
-            sda_pin: impl Peripheral<P = impl PeripheralOutput> + 'a,
-            scl_pin: impl Peripheral<P = impl PeripheralOutput> + 'a,
+            device: impl Instance + 'a,
+            sda_pin: impl PeripheralOutput<'a>,
+            scl_pin: impl PeripheralOutput<'a>,
         ) -> Self {
-            let i2c_inf: I2c<'_, esp_hal::Blocking> = I2c::new(device, Config::default())
+            let i2c_inf = I2c::new(device, Config::default())
+                .expect("I2C")
                 .with_sda(sda_pin)
                 .with_scl(scl_pin);
 

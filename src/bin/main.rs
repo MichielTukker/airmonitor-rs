@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
 
+use embedded_hal::delay::DelayNs;
 use esp_backtrace as _;
-use esp_hal::{delay::Delay, prelude::*};
-// use esp_hal::timer::timg::TimerGroup;
+use esp_hal::{clock::CpuClock, delay::Delay, main};
 use log::info;
 extern crate alloc;
 
@@ -16,15 +16,21 @@ use airmonitor_rs::devices::display;
 //     pm10: f32,
 // }
 
-#[entry]
+//#[panic_handler]
+//fn panic(_: &core::panic::PanicInfo) -> ! {
+//    loop {}
+//}
+
+esp_bootloader_esp_idf::esp_app_desc!();
+
+#[main]
 fn main() -> ! {
     let peripherals = esp_hal::init({
-        let mut config = esp_hal::Config::default();
-        config.cpu_clock = CpuClock::max();
+        let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
         config
     });
     esp_println::logger::init_logger_from_env();
-    esp_alloc::heap_allocator!(72 * 1024);
+    esp_alloc::heap_allocator!(size: 32 * 1024);
 
     // Wifi initialization, not needed for now
     // let timg0 = TimerGroup::new(peripherals.TIMG0);
@@ -37,11 +43,11 @@ fn main() -> ! {
     let mut display =
         display::OledDisplay::new(peripherals.I2C0, peripherals.GPIO5, peripherals.GPIO4);
     let mut status = false;
-    display.print("Hello world!");
+    display.print("=== Airmonitor-rs ===");
 
-    let delay = Delay::new();
+    let mut delay = Delay::new();
     loop {
-        delay.delay(1500.millis());
+        delay.delay_ms(1500 as u32);
         if !status {
             status = true;
         } else {
