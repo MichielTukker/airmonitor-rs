@@ -53,29 +53,18 @@ async fn main(spawner: Spawner) -> ! {
     esp_rtos::start(timg0.timer0);
     info!("Embassy initialized!");
 
-    // static mut SECOND_CORE_STACK: esp_hal::system::Stack<{ 16 * 1024 }> =
-    //     esp_hal::system::Stack::new();
-    // esp_rtos::start_second_core(
-    //     peripherals.CPU_CTRL,
-    //     sw_int.software_interrupt0,
-    //     sw_int.software_interrupt1,
-    //     unsafe { &mut SECOND_CORE_STACK },
-    //     || {},
-    // );
-
-    let esp_radio_controller = &*mk_static!(
-        esp_radio::Controller<'static>,
-        esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller")
-    );
-
     let mut display =
         display::OledDisplay::new(peripherals.I2C0, peripherals.GPIO5, peripherals.GPIO4);
     display.clear();
     display.print("=== Airmonitor-rs ===");
 
     // Setup wifi
+    let radio_init = &*mk_static!(
+        esp_radio::Controller<'static>,
+        esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller")
+    );
     let (controller, interfaces) =
-        esp_radio::wifi::new(&esp_radio_controller, peripherals.WIFI, Default::default())
+        esp_radio::wifi::new(radio_init, peripherals.WIFI, Default::default())
             .expect("Failed to initialize Wi-Fi controller");
 
     let wifi_interface = interfaces.sta;
@@ -103,7 +92,10 @@ async fn main(spawner: Spawner) -> ! {
     display.print_at(0, 28, &format!("IP: {}", address));
 
     access_website(stack, tls_seed).await;
-    loop {}
+    loop {
+        println!("Looping...");
+        Timer::after(Duration::from_secs(60)).await;
+    }
 }
 
 async fn wait_for_connection(stack: Stack<'_>) -> embassy_net::Ipv4Cidr {
@@ -124,8 +116,7 @@ async fn wait_for_connection(stack: Stack<'_>) -> embassy_net::Ipv4Cidr {
         }
         Timer::after(Duration::from_millis(500)).await;
     }
-    let ip_address = stack.config_v4().unwrap().address;
-    ip_address
+    stack.config_v4().unwrap().address
 }
 
 async fn access_website(stack: Stack<'_>, tls_seed: u64) {
@@ -165,13 +156,10 @@ async fn connection(mut controller: WifiController<'static>) {
     println!("start connection task");
     println!("Device capabilities: {:?}", controller.capabilities());
     loop {
-        match esp_radio::wifi::sta_state() {
-            WifiStaState::Connected => {
-                // wait until we're no longer connected
-                controller.wait_for_event(WifiEvent::StaDisconnected).await;
-                Timer::after(Duration::from_millis(5000)).await
-            }
-            _ => {}
+        if let WifiStaState::Connected = esp_radio::wifi::sta_state() {
+            // wait until we're no longer connected
+            controller.wait_for_event(WifiEvent::StaDisconnected).await;
+            Timer::after(Duration::from_millis(5000)).await
         }
         if !matches!(controller.is_started(), Ok(true)) {
             let station_config = ModeConfig::Client(
