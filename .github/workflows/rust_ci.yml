@@ -37,4 +37,6 @@ jobs:
       - name: Enable caching
         uses: Swatinem/rust-cache@v2
       - name: Run command
-        run: cargo ${{ matrix.action.command }} ${{ matrix.action.args }}
+        run: |
+          export $(grep -v '^#' .env.template | xargs) 
+          cargo ${{ matrix.action.command }} ${{ matrix.action.args }}

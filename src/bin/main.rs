@@ -36,8 +36,8 @@ macro_rules! mk_static {
         x
     }};
 }
-const SSID: &str = env!("SSID");
-const PASSWORD: &str = env!("PASSWORD");
+const SSID: &str = env!("SSID", "SSID not set");
+const PASSWORD: &str = env!("PASSWORD", "PASSWORD not set");
 
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
