@@ -10,7 +10,7 @@ pub mod display {
     use esp_hal::i2c::master::Config;
     use esp_hal::i2c::master::I2c;
     use esp_hal::i2c::master::Instance;
-    use log::{debug, error, info, warn};
+    use defmt::{debug, error, info, warn};
     use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 
     pub struct OledDisplay<'a> {

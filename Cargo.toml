@@ -1,28 +1,30 @@
 [package]
 name = "airmonitor-rs"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-esp-hal = { version = "~1.0", features = ["esp32", "log-04", "unstable"] }
+defmt = "1.0.1"
+defmt-rtt = "1.1.0"
+esp-hal = { version = "~1.0", features = ["esp32", "defmt", "unstable"] }
 
 esp-rtos = { version = "0.2.0", features = [
   "embassy",
   "esp-alloc",
   "esp-radio",
   "esp32",
-  "log-04",
+  "defmt",
 ] }
 
-esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32", "log-04"] }
-log                    = "0.4.27"
+esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32", "defmt"] }
 
 embassy-net = { version = "0.7.1", features = [
   "dhcpv4",
-  "log",
+  "defmt",
   "medium-ethernet",
   "tcp",
   "udp",
+  "dns",
 ] }
 embedded-io = "0.7.1"
 embedded-io-async = "0.7.0"
@@ -33,20 +35,20 @@ esp-backtrace = { version = "0.18.1", features = [
   "panic-handler",
   "println",
 ] }
-esp-println = { version = "0.16.1", features = ["esp32", "log-04"] }
+esp-println = { version = "0.16.1", features = ["esp32", "defmt-espflash"] }
 # for more networking protocol support see https://crates.io/crates/edge-net
-embassy-executor = { version = "0.9.1", features = ["log"] }
-embassy-time = { version = "0.5.0", features = ["log"] }
+embassy-executor = { version = "0.9.1", features = ["defmt"] }
+embassy-time = { version = "0.5.0", features = ["defmt"] }
 esp-radio = { version = "0.17.0", features = [
   "esp-alloc",
   "esp32",
-  "log-04",
+  "defmt",
   "smoltcp",
   "unstable",
   "wifi",
 ] }
 smoltcp = { version = "0.12.0", default-features = false, features = [
-  "log",
+  "defmt",
   "medium-ethernet",
   "multicast",
   "proto-dhcpv4",
@@ -57,13 +59,24 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-raw",
   "socket-tcp",
   "socket-udp",
+  "dns-max-server-count-4", 
 ] }
+reqwless = { version = "0.13.0", default-features = false, features = ["embedded-tls",]}
 
 critical-section = "1.2.0"
 static_cell      = "2.1.1"
 
 ssd1306 = {version = "0.9.0"}
 embedded-graphics = {version = "0.8.1"}
+
+[features]
+esp32 = [
+    "esp-backtrace/esp32",
+    "esp-bootloader-esp-idf/esp32",
+    "esp-hal/esp32",
+    "esp-rtos/esp32",
+    "esp-radio/esp32",
+]
 
 [profile.dev]
 # Rust debug is too slow.
