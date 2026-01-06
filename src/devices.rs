@@ -1,7 +1,8 @@
 pub mod display {
 
+    use defmt::{debug, error, info, warn};
     use embedded_graphics::{
-        mono_font::{ascii::FONT_6X10, MonoTextStyle, MonoTextStyleBuilder},
+        mono_font::{MonoTextStyle, MonoTextStyleBuilder, ascii::FONT_6X10},
         pixelcolor::BinaryColor,
         prelude::*,
         text::{Baseline, Text},
@@ -10,8 +11,7 @@ pub mod display {
     use esp_hal::i2c::master::Config;
     use esp_hal::i2c::master::I2c;
     use esp_hal::i2c::master::Instance;
-    use defmt::{debug, error, info, warn};
-    use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
+    use ssd1306::{I2CDisplayInterface, Ssd1306, prelude::*};
 
     pub struct OledDisplay<'a> {
         display: Ssd1306<

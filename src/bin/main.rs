@@ -1,11 +1,7 @@
 #![no_std]
 #![no_main]
 
-use defmt::{info};
-use esp_hal::{
-    clock::CpuClock,
-    rng::Rng, timer::timg::TimerGroup,
-};
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_net::{
     DhcpConfig, Runner, Stack, StackResources,
@@ -13,15 +9,14 @@ use embassy_net::{
     tcp::client::{TcpClient, TcpClientState},
 };
 use embassy_time::{Duration, Timer};
+use esp_hal::{clock::CpuClock, rng::Rng, timer::timg::TimerGroup};
 use esp_println::println;
-use esp_radio::{
-    wifi::{
-        ClientConfig, ModeConfig, ScanConfig, WifiController, WifiDevice, WifiEvent, WifiStaState,
-    },
+use esp_radio::wifi::{
+    ClientConfig, ModeConfig, ScanConfig, WifiController, WifiDevice, WifiEvent, WifiStaState,
 };
 use reqwless::client::{HttpClient, TlsConfig};
 extern crate alloc;
-use alloc::{format};
+use alloc::format;
 
 use airmonitor_rs::devices::display;
 
@@ -69,27 +64,28 @@ async fn main(spawner: Spawner) -> ! {
     // );
 
     let esp_radio_controller = &*mk_static!(
-        esp_radio::Controller<'static>, 
+        esp_radio::Controller<'static>,
         esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller")
     );
-    
+
     let mut display =
-    display::OledDisplay::new(peripherals.I2C0, peripherals.GPIO5, peripherals.GPIO4);
+        display::OledDisplay::new(peripherals.I2C0, peripherals.GPIO5, peripherals.GPIO4);
     display.clear();
     display.print("=== Airmonitor-rs ===");
 
     // Setup wifi
     let (controller, interfaces) =
-        esp_radio::wifi::new(&esp_radio_controller, peripherals.WIFI, Default::default()).expect("Failed to initialize Wi-Fi controller");
+        esp_radio::wifi::new(&esp_radio_controller, peripherals.WIFI, Default::default())
+            .expect("Failed to initialize Wi-Fi controller");
 
     let wifi_interface = interfaces.sta;
     let rng = Rng::new();
     let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
     let tls_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
-    
+
     let dhcp_config = DhcpConfig::default();
     let config = embassy_net::Config::dhcpv4(dhcp_config);
-    
+
     // Init network stack
     let (stack, runner) = embassy_net::new(
         wifi_interface,
@@ -110,8 +106,7 @@ async fn main(spawner: Spawner) -> ! {
     loop {}
 }
 
-
-async fn wait_for_connection(stack: Stack<'_>) -> embassy_net::Ipv4Cidr{
+async fn wait_for_connection(stack: Stack<'_>) -> embassy_net::Ipv4Cidr {
     println!("Waiting to get link...");
     loop {
         if stack.is_link_up() {
