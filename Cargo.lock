@@ -47,6 +47,7 @@ dependencies = [
  "embassy-executor",
  "embassy-net",
  "embassy-time",
+ "embedded-dht-rs",
  "embedded-graphics",
  "embedded-hal 1.0.0",
  "embedded-io 0.7.1",
@@ -58,8 +59,10 @@ dependencies = [
  "esp-println",
  "esp-radio",
  "esp-rtos",
+ "jiff",
  "reqwless",
  "smoltcp",
+ "sntpc",
  "ssd1306",
  "static_cell",
 ]
@@ -702,6 +705,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9d2e857f87ac832df68fa498d18ddc679175cf3d2e4aa893988e5601baf9438"
 dependencies = [
  "nb 1.1.0",
+]
+
+[[package]]
+name = "embedded-dht-rs"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d29effeefb22e6d214e9ab294123ff3fe3578159679cde5591c82c272c8ae53f"
+dependencies = [
+ "embedded-hal 1.0.0",
 ]
 
 [[package]]
@@ -1532,10 +1544,17 @@ version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0c84ee7f197eca9a86c6fd6cb771e55eb991632f15f2bc3ca6ec838929e6e78"
 dependencies = [
+ "jiff-tzdb",
  "proc-macro2",
  "quote",
  "syn 2.0.113",
 ]
+
+[[package]]
+name = "jiff-tzdb"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68971ebff725b9e2ca27a601c5eb38a4c5d64422c4cbab0c535f248087eda5c2"
 
 [[package]]
 name = "libc"
@@ -2071,6 +2090,16 @@ dependencies = [
  "defmt 0.3.100",
  "heapless 0.8.0",
  "managed",
+]
+
+[[package]]
+name = "sntpc"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13d84c42dedf8b01d52b62272684741866938260e74b9e58851f680b2a92854b"
+dependencies = [
+ "cfg-if",
+ "embassy-net",
 ]
 
 [[package]]

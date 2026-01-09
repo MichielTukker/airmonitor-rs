@@ -22,6 +22,7 @@ pub mod display {
         text_style: MonoTextStyle<'a, BinaryColor>,
     }
 
+    //TODO implement scrolling buffer (println style)
     impl<'a> OledDisplay<'a> {
         pub fn new(
             device: impl Instance + 'a,
@@ -33,7 +34,8 @@ pub mod display {
                 .with_sda(sda_pin)
                 .with_scl(scl_pin);
 
-            let interface = I2CDisplayInterface::new(i2c_inf);
+            // our display sits at i2c address 0x3C
+            let interface = I2CDisplayInterface::new(i2c_inf); // i2c interface with default address 0x3C 
             let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
                 .into_buffered_graphics_mode();
             display.init().unwrap();
@@ -86,12 +88,26 @@ pub mod display {
     }
 }
 
-pub mod environment {
-    pub mod dht11 {
-        pub fn init() {}
+// pub mod environment {
+//     use esp_hal::delay::Delay;
+//     use embedded_hal::digital::OutputPin;
+//     pub struct EnvironmentSensor<P: OutputPin> {
+//         dht11: Dht11<P>,
+//         delay: Delay
+//     }
+//     impl<P: OutputPin> EnvironmentSensor<P> {
+//         pub fn new(pin: P) -> Self {
+//             let delay = Delay::new();
+//             let dht11 = Dht11::new(pin);
+//             Self { dht11, delay}
+//         }
 
-        pub fn read() -> (f32, f32) {
-            (0.0, 0.0)
-        }
-    }
-}
+//         pub fn read(&mut self) -> Result<(f32, f32), &'static str> {
+//             match self.dht11.perform_measurement(&mut self.delay) {
+//                 Ok(reading) => Ok((reading.temperature as f32, reading.humidity as f32)),
+//                 Err(_) => Err("Failed to read from DHT11 sensor"),
+//             }
+//         }
+        
+//     }
+// }
