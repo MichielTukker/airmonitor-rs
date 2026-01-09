@@ -2,42 +2,45 @@
 #![no_main]
 
 use core::net::{IpAddr, SocketAddr};
-use defmt::{info, error, debug, warn, flush};
+use defmt::{debug, error, flush, info, warn};
 use embassy_executor::Spawner;
 use embassy_net::{
     DhcpConfig, Runner, Stack, StackResources,
-    dns::DnsSocket,
     dns::DnsQueryType,
-    tcp::client::{TcpClient, TcpClientState},
     udp::{PacketMetadata, UdpSocket},
 };
 use embassy_time::{Duration, Timer};
-use esp_hal::{clock::CpuClock, rng::Rng, timer::timg::TimerGroup, rtc_cntl::Rtc,gpio::{DriveMode, Flex, OutputConfig, Pull},};
 use esp_hal::delay::Delay;
+use esp_hal::{
+    clock::CpuClock,
+    gpio::{DriveMode, Flex, OutputConfig, Pull},
+    rng::Rng,
+    rtc_cntl::Rtc,
+    timer::timg::TimerGroup,
+};
 
-use esp_println as _;  // required to setup defmt global logger
+use esp_println as _; // required to setup defmt global logger
 use esp_radio::wifi::{
     ClientConfig, ModeConfig, ScanConfig, WifiController, WifiDevice, WifiEvent, WifiStaState,
 };
-use reqwless::client::{HttpClient, TlsConfig};
 extern crate alloc;
-use alloc::{format};
+use alloc::format;
 use sntpc::{NtpContext, NtpTimestampGenerator, get_time};
 
-use embedded_dht_rs::dht22::Dht22;
 use airmonitor_rs::devices::display;
+use embedded_dht_rs::dht22::Dht22;
 // use airmonitor_rs::devices::environment::{EnvironmentSensor};
 
 // use airmonitor_rs::time_ntp::ntp::{NTP_SERVER};
 // use airmonitor_rs::time_ntp::timestamp::Timestamp;
 
-    // use esp_hal::rtc_cntl::Rtc;
-    // use sntpc::NtpTimestampGenerator;
+// use esp_hal::rtc_cntl::Rtc;
+// use sntpc::NtpTimestampGenerator;
 
 /// Microseconds in a second
 const USEC_IN_SEC: u64 = 1_000_000;
 
-const TIMEZONE: jiff::tz::TimeZone = jiff::tz::get!("UTC");
+// const TIMEZONE: jiff::tz::TimeZone = jiff::tz::get!("UTC");
 const NTP_SERVER: &str = "pool.ntp.org";
 
 #[derive(Clone, Copy)]
@@ -59,7 +62,6 @@ impl NtpTimestampGenerator for Timestamp<'_> {
         (self.current_time_us % USEC_IN_SEC) as u32
     }
 }
-
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -103,7 +105,7 @@ async fn main(spawner: Spawner) -> ! {
     display.print("=== Airmonitor-rs ===");
 
     // The esp radio controller must be 'static because it is used by the network stack,
-    //  which partially runs on the second core. 
+    //  which partially runs on the second core.
     let radio_init = &*mk_static!(
         esp_radio::Controller<'static>,
         esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller")
@@ -136,20 +138,20 @@ async fn main(spawner: Spawner) -> ! {
     display.print_at(0, 15, "v0.0.1.");
     display.print_at(0, 28, &format!("IP: {}", address));
 
-    //TODO current time/date? 
+    //TODO current time/date?
     //TODO sensor readings (DHT/BME280/PM2.5)
     //TODO implement screen refreshing (clearing pixels before writing new text)
     //TODO add MQTT messaging
     // access_website(stack, tls_seed).await;
     let now = jiff::Timestamp::from_microsecond(rtc.current_time_us() as i64).unwrap();
     // let formatted_ts = now.to_string();
-    info!("Rtc: {}",defmt::Display2Format(&now));
+    info!("Rtc: {}", defmt::Display2Format(&now));
 
     fetch_time_from_ntp(stack, tls_seed, &rtc).await;
 
     let now = jiff::Timestamp::from_microsecond(rtc.current_time_us() as i64).unwrap();
     // let formatted_ts = now.to_string();
-    info!("Rtc: {}",defmt::Display2Format(&now));
+    info!("Rtc: {}", defmt::Display2Format(&now));
 
     // DHT22 sensor setup (GPIO5)
     let mut dht22_pin = Flex::new(peripherals.GPIO14);
@@ -171,17 +173,18 @@ async fn main(spawner: Spawner) -> ! {
             Ok(sensor_reading) => {
                 info!(
                     "DHT 22 Sensor - Temperature: {} °C, humidity: {} %",
-                    sensor_reading.temperature,
-                    sensor_reading.humidity
+                    sensor_reading.temperature, sensor_reading.humidity
                 );
                 display.print_at(0, 42, &format!("Temp: {:.1} C", sensor_reading.temperature));
                 display.print_at(0, 54, &format!("Hum: {:.1} %", sensor_reading.humidity));
-
             }
             Err(error) => {
-                warn!("An error occurred while trying to read sensor: {:?}", defmt::Debug2Format(&error));
+                warn!(
+                    "An error occurred while trying to read sensor: {:?}",
+                    defmt::Debug2Format(&error)
+                );
             }
-        }        
+        }
 
         info!("Looping...");
         Timer::after(Duration::from_secs(60)).await;
@@ -208,32 +211,35 @@ async fn fetch_time_from_ntp(stack: Stack<'_>, _tls_seed: u64, rtc: &Rtc<'_>) {
     );
 
     socket.bind(123).unwrap();
-    
+
     let result = get_time(
-            SocketAddr::from((addr, 123)),
-            &socket,
-            NtpContext::new(Timestamp {
-                rtc: rtc,
-                current_time_us: 0,
-            }),
-        )
-        .await;
+        SocketAddr::from((addr, 123)),
+        &socket,
+        NtpContext::new(Timestamp {
+            rtc,
+            current_time_us: 0,
+        }),
+    )
+    .await;
 
-        match result {
-            Ok(time) => {
-                // Set time immediately after receiving to reduce time offset.
-                debug!("NTP time received: sec={}, frac={}", time.sec(), time.sec_fraction());
-                rtc.set_current_time_us(
-                    (time.sec() as u64 * USEC_IN_SEC)
-                        + ((time.sec_fraction() as u64 * USEC_IN_SEC) >> 32),
-                );
-            }
-            Err(e) => {
-                defmt::error!("Error getting time: {}", defmt::Debug2Format(&e));
-            }
+    match result {
+        Ok(time) => {
+            // Set time immediately after receiving to reduce time offset.
+            debug!(
+                "NTP time received: sec={}, frac={}",
+                time.sec(),
+                time.sec_fraction()
+            );
+            rtc.set_current_time_us(
+                (time.sec() as u64 * USEC_IN_SEC)
+                    + ((time.sec_fraction() as u64 * USEC_IN_SEC) >> 32),
+            );
         }
-        flush();
-
+        Err(e) => {
+            defmt::error!("Error getting time: {}", defmt::Debug2Format(&e));
+        }
+    }
+    flush();
 }
 
 async fn wait_for_connection(stack: Stack<'_>) -> embassy_net::Ipv4Cidr {
@@ -257,38 +263,6 @@ async fn wait_for_connection(stack: Stack<'_>) -> embassy_net::Ipv4Cidr {
     }
     flush();
     stack.config_v4().unwrap().address
-}
-
-async fn access_website(stack: Stack<'_>, tls_seed: u64) {
-    let mut rx_buffer = [0; 4096];
-    let mut tx_buffer = [0; 4096];
-    let dns = DnsSocket::new(stack);
-    let tcp_state = TcpClientState::<1, 4096, 4096>::new();
-    let tcp = TcpClient::new(stack, &tcp_state);
-
-    let tls = TlsConfig::new(
-        tls_seed,
-        &mut rx_buffer,
-        &mut tx_buffer,
-        reqwless::client::TlsVerify::None,
-    );
-
-    let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
-    let mut buffer = [0u8; 4096];
-    let mut http_req = client
-        .request(
-            reqwless::request::Method::GET,
-            "https://jsonplaceholder.typicode.com/posts/1",
-        )
-        .await
-        .unwrap();
-    let response = http_req.send(&mut buffer).await.unwrap();
-
-    info!("Got response");
-    let res = response.body().read_to_end().await.unwrap();
-
-    let content = core::str::from_utf8(res).unwrap();
-    info!("{}", content);
 }
 
 #[embassy_executor::task]

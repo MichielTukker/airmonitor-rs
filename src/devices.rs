@@ -108,6 +108,6 @@ pub mod display {
 //                 Err(_) => Err("Failed to read from DHT11 sensor"),
 //             }
 //         }
-        
+
 //     }
 // }
