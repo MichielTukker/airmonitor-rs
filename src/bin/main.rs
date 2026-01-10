@@ -4,7 +4,6 @@
 use defmt::{info, warn};
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
-use esp_hal::delay::Delay;
 use esp_hal::{
     clock::CpuClock,
     gpio::{DriveMode, Flex, OutputConfig, Pull},
@@ -12,17 +11,15 @@ use esp_hal::{
     timer::timg::TimerGroup,
 };
 
-use embedded_dht_rs::dht22::Dht22;
 use esp_println as _; // required to setup defmt global logger
 
 extern crate alloc;
 use alloc::format;
 
 use airmonitor_rs::devices::display;
+use airmonitor_rs::devices::environment::EnvironmentSensor;
 use airmonitor_rs::mk_static;
-use airmonitor_rs::network::wifi::{
-    connection, init_network_stack, net_task, wait_for_connection,
-};
+use airmonitor_rs::network::wifi::{connection, init_network_stack, net_task, wait_for_connection};
 use airmonitor_rs::ntp_service::ntp::update_clock_from_ntp;
 
 #[panic_handler]
@@ -38,6 +35,11 @@ const PASSWORD: &str = env!("PASSWORD", "PASSWORD not set");
 const NTP_URL: &str = match option_env!("NTP_URL") {
     Some(val) => val,
     None => "pool.ntp.org",
+};
+
+const TIMEZONE: &str = match option_env!("TIMEZONE") {
+    Some(val) => val,
+    None => "Europe/Brussels",
 };
 
 #[esp_rtos::main]
@@ -67,26 +69,6 @@ async fn main(spawner: Spawner) -> ! {
         esp_radio::Controller<'static>,
         esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller")
     );
-    // let (controller, interfaces) =
-    //     esp_radio::wifi::new(radio_init, peripherals.WIFI, Default::default())
-    //         .expect("Failed to initialize Wi-Fi controller");
-
-    // let wifi_interface = interfaces.sta;
-    // let rng = Rng::new();
-    // let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
-    // let tls_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
-
-    // let dhcp_config = DhcpConfig::default();
-    // let config = embassy_net::Config::dhcpv4(dhcp_config);
-
-    // // Init network stack
-    // let (stack, runner) = embassy_net::new(
-    //     wifi_interface,
-    //     config,
-    //     mk_static!(StackResources<3>, StackResources::<3>::new()),
-    //     net_seed,
-    // );
-
     let (stack, tls_seed, controller, runner) = init_network_stack(radio_init, peripherals.WIFI);
     spawner.spawn(connection(controller, SSID, PASSWORD)).ok();
     spawner.spawn(net_task(runner)).ok();
@@ -101,28 +83,21 @@ async fn main(spawner: Spawner) -> ! {
     //TODO implement screen refreshing (clearing pixels before writing new text)
     //TODO add MQTT messaging
 
-    update_clock_from_ntp(stack, tls_seed, &rtc, NTP_URL).await;
+    update_clock_from_ntp(stack, tls_seed, &rtc, NTP_URL, TIMEZONE).await;
     let now = jiff::Timestamp::from_microsecond(rtc.current_time_us() as i64).unwrap();
-    // let formatted_ts = now.to_string();
     info!("Current time: {}", defmt::Display2Format(&now));
 
-    // DHT22 sensor setup (GPIO5)
+    // DHT22 sensor setup (GPIO14)
     let mut dht22_pin = Flex::new(peripherals.GPIO14);
     dht22_pin.apply_output_config(
         &OutputConfig::default()
             .with_drive_mode(DriveMode::OpenDrain)
             .with_pull(Pull::None),
     );
-    dht22_pin.set_output_enable(true);
-    dht22_pin.set_input_enable(true);
-    dht22_pin.set_high();
-
-    let mut dht22 = Dht22::new(dht22_pin, Delay::new());
-
-    // let mut env_sensor = EnvironmentSensor::new(pperipherals.GPIO14.into_open_drain_output());
+    let mut sensor = EnvironmentSensor::new(dht22_pin);
 
     loop {
-        match dht22.read() {
+        match sensor.read() {
             Ok(sensor_reading) => {
                 info!(
                     "DHT 22 Sensor - Temperature: {} °C, humidity: {} %",

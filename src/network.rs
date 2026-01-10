@@ -1,5 +1,5 @@
 pub mod wifi {
-    use defmt::{debug, error, flush, info};
+    use defmt::{debug, error, info};
     use embassy_net::{DhcpConfig, Runner, Stack, StackResources};
 
     use embassy_time::{Duration, Timer};
@@ -60,7 +60,6 @@ pub mod wifi {
             debug!("Waiting...");
             Timer::after(Duration::from_millis(500)).await;
         }
-        flush();
         stack.config_v4().unwrap().address
     }
 

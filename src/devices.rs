@@ -88,26 +88,35 @@ pub mod display {
     }
 }
 
-// pub mod environment {
-//     use esp_hal::delay::Delay;
-//     use embedded_hal::digital::OutputPin;
-//     pub struct EnvironmentSensor<P: OutputPin> {
-//         dht11: Dht11<P>,
-//         delay: Delay
-//     }
-//     impl<P: OutputPin> EnvironmentSensor<P> {
-//         pub fn new(pin: P) -> Self {
-//             let delay = Delay::new();
-//             let dht11 = Dht11::new(pin);
-//             Self { dht11, delay}
-//         }
+pub mod environment {
+    use embedded_dht_rs::dht22::Dht22;
+    use esp_hal::{delay::Delay, gpio::Flex};
 
-//         pub fn read(&mut self) -> Result<(f32, f32), &'static str> {
-//             match self.dht11.perform_measurement(&mut self.delay) {
-//                 Ok(reading) => Ok((reading.temperature as f32, reading.humidity as f32)),
-//                 Err(_) => Err("Failed to read from DHT11 sensor"),
-//             }
-//         }
+    pub struct SensorReading {
+        pub temperature: f32,
+        pub humidity: f32,
+    }
+    pub struct EnvironmentSensor<'a> {
+        dht22: Dht22<Flex<'a>, Delay>,
+    }
+    impl<'a> EnvironmentSensor<'a> {
+        pub fn new(mut dht22_pin: Flex<'a>) -> Self {
+            dht22_pin.set_output_enable(true);
+            dht22_pin.set_input_enable(true);
+            dht22_pin.set_high();
 
-//     }
-// }
+            let dht22 = Dht22::new(dht22_pin, Delay::new());
+            Self { dht22 }
+        }
+
+        pub fn read(&mut self) -> Result<SensorReading, &'static str> {
+            match self.dht22.read() {
+                Ok(reading) => Ok(SensorReading {
+                    temperature: reading.temperature,
+                    humidity: reading.humidity,
+                }),
+                Err(_) => Err("Failed to read from sensor"),
+            }
+        }
+    }
+}
